@@ -1,8 +1,8 @@
 # WANTED: Port Meridian
 
-![competition](https://make.fun/badge/gta6-01.svg)
-![rank](https://make.fun/badge/gta6-01/aldiprayoga830-hash/makefun-gta6-wanted/rank.svg)
-![reward](https://make.fun/badge/gta6-01/aldiprayoga830-hash/makefun-gta6-wanted/reward.svg)
+[![make.fun · gta6-01](https://make.fun/badge/gta6-01.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![rank](https://make.fun/badge/gta6-01/aldiprayoga830-hash/makefun-gta6-wanted/rank.svg)](https://make.fun/bounty/gta6-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
+[![reward](https://make.fun/badge/gta6-01/aldiprayoga830-hash/makefun-gta6-wanted/reward.svg)](https://make.fun/bounty/gta6-01?utm_source=github&utm_medium=readme&utm_campaign=gta6-01)
 
 An original top-down 2D open-world crime game in plain static files — no libraries, no build
 step, no network requests. You arrive in Port Meridian broke and good behind a wheel; the
