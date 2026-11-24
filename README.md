@@ -47,3 +47,15 @@ node serve.ts --port 8080
 Then open http://localhost:8080 in a desktop browser. Everything runs offline from the
 `game/` folder; `main.ts` packages the entry (`game/`, `screenshots/`, `dossier.json`) for
 the make.fun grader.
+
+## Development
+
+This game was built by an AI agent in a single recorded session for the make.fun gta6-01
+bounty. The whole mission chain was play-tested end to end — from the opening dialogue
+through all three of Vex's missions and the repeatable delivery jobs — before the entry
+was packaged. The four screenshots in `screenshots/` are real renders of the game:
+
+- `1-start.jpg` — the title screen over the living city
+- `2-play.jpg` — driving in traffic, with the HUD and minimap up
+- `3-chase.jpg` — a police chase at three wanted stars
+- `4-end.jpg` — the mission-complete panel at Vex's Garage
