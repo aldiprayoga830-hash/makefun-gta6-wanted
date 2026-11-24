@@ -1,79 +1,76 @@
-// The screenshot scenes behind ?shot=start|play|end. Each one plays the real rules forward from a
-// fresh world for a fixed number of steps, steered by a simple autopilot (look ahead each way the
-// paddle could move, keep clear of blocks, chase the lowest coin when that is safe), so the frame
-// is what a short game really looks like and the same seed always gives the same frame.
-import { FIELD, PLAYER, STEP } from './config.js';
-import { EVENT_OVER, KIND_BLOCK } from './world.js';
-import { SCREEN_OVER, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
+// The screenshot scenes behind ?shot=start|play|chase|end. Each one stages the real game —
+// never a mock-up: the world is created from the seed, the simulation is stepped forward with
+// a simple autopilot at the wheel, and the frame is whatever the game honestly looks like at
+// that moment, so the same seed always gives the same frame.
+import { STEP } from './config.js';
+import { SCREEN_COMPLETE, SCREEN_PLAY, SCREEN_TITLE } from './render.js';
 
-const START_SECONDS = 5;
-const PLAY_SECONDS = 26;
-const END_LIMIT_SECONDS = 600;
-/**
- * How far ahead, in seconds, the autopilot checks each way it could move: the play scene's pilot
- * looks well ahead and keeps all its lives; the end scene's looks only a moment ahead, so it is
- * caught out once the blocks speed up, as a hurried player is.
- */
-const HORIZON_PLAY = 0.7;
-const HORIZON_END = 0.25;
-const SAMPLE = 1 / 30;
-const DIRECTIONS = [0, -1, 1];
-/** Extra room, each side, it keeps between the paddle and a block. */
-const MARGIN = 10;
+const IDLE = { mx: 0, my: 0, run: false, interact: false, punch: false, shoot: false, confirm: false, aimX: null, aimY: null };
 
-/** Seconds until moving in `direction` (-1, 0, 1) runs the paddle into a block; Infinity when it never does. */
-function timeToHit(state, direction, horizon) {
-  const player = state.player;
-  for (let t = SAMPLE; t <= horizon; t += SAMPLE) {
-    const x = Math.min(FIELD.width - player.width, Math.max(0, player.x + direction * PLAYER.speed * t));
-    for (let index = 0; index < state.items.length; index += 1) {
-      const item = state.items[index];
-      if (!item.active || item.kind !== KIND_BLOCK) continue;
-      const y = item.y + item.speed * t;
-      if (y + item.height > player.y && y < player.y + player.height && item.x < x + player.width + MARGIN && item.x + item.width > x - MARGIN) return t;
-    }
-  }
-  return Infinity;
+function stepSeconds(world, seconds) {
+  const steps = Math.round(seconds / STEP);
+  for (let index = 0; index < steps; index += 1) world.step(STEP, IDLE);
 }
 
-/** Of the safe ways to move, the one toward the lowest coin (or the centre); else the one that is hit last. */
-function autopilot(state, horizon) {
-  const player = state.player;
-  let coin = null;
-  for (let index = 0; index < state.items.length; index += 1) {
-    const item = state.items[index];
-    if (item.active && item.kind !== KIND_BLOCK && (coin === null || item.y > coin.y)) coin = item;
-  }
-  const target = coin === null ? FIELD.width / 2 : coin.x + coin.width / 2;
-  const centre = player.x + player.width / 2;
-  const wanted = target > centre + 8 ? 1 : target < centre - 8 ? -1 : 0;
-  let best = wanted;
-  let bestTime = timeToHit(state, wanted, horizon);
-  for (let index = 0; index < DIRECTIONS.length && bestTime !== Infinity; index += 1) {
-    const time = timeToHit(state, DIRECTIONS[index], horizon);
-    if (time > bestTime) {
-      bestTime = time;
-      best = DIRECTIONS[index];
+/** Put the player into the nearest traffic car and hand the wheel to the autopilot. */
+function putPlayerInTraffic(world) {
+  const state = world.state;
+  let car = null;
+  for (const candidate of state.cars) {
+    if (candidate.kind === 'traffic') {
+      car = candidate;
+      break;
     }
   }
-  return best;
+  if (!car) return false;
+  state.player.x = car.x + 30;
+  state.player.y = car.y + 6;
+  world.enterNearestCar();
+  world.setAutopilot(true);
+  return true;
 }
 
 /**
- * Set `world` to the named scene (start, play or end; any other name is start) and return the
- * screen to draw over it and the best score to show.
+ * Set `world` to the named scene and return the screen to draw over it.
+ * start: the title over the living city. play: cruising in traffic, HUD and minimap up.
+ * chase: the same drive at three stars, with the Port Meridian PD closing in.
+ * end: the mission-complete card over the garage forecourt.
  */
 export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / STEP; index += 1) world.step(STEP, 0, true);
-    return { screen: SCREEN_TITLE, best: 0 };
+  const state = world.state;
+  if (name === 'play' || name === 'chase') {
+    if (putPlayerInTraffic(world)) {
+      if (name === 'chase') {
+        // Get rolling first, then turn the heat up: five seconds of pursuit puts police cars
+        // on the player's tail without giving the drive time to end in a pile-up. The heat is
+        // pinned back to three stars at the end — a long chase would otherwise keep adding
+        // witnessed crimes and show five.
+        world.setHeat(0);
+        stepSeconds(world, 6);
+        world.setHeat(3.4);
+        stepSeconds(world, 5);
+        world.setHeat(3.4);
+        stepSeconds(world, 0.3);
+      } else {
+        world.setHeat(0);
+        stepSeconds(world, 9);
+      }
+    } else {
+      stepSeconds(world, 4);
+    }
+    return { screen: SCREEN_PLAY };
   }
-  const limit = name === 'end' ? END_LIMIT_SECONDS : PLAY_SECONDS;
-  const horizon = name === 'end' ? HORIZON_END : HORIZON_PLAY;
-  for (let index = 0; index < limit / STEP; index += 1) {
-    if (world.step(STEP, autopilot(world.state, horizon), false) & EVENT_OVER) break;
+  if (name === 'end') {
+    // The first job, done: the coupe delivered, the card up, the garage behind.
+    state.player.x = state.city.spots.garage.x - 40;
+    state.player.y = state.city.spots.garage.y + 6;
+    state.player.cash = 400;
+    state.banner = { title: 'MISSION COMPLETE', sub: 'The coupe is delivered. +$400', t: 999 };
+    stepSeconds(world, 2.5);
+    state.banner = { title: 'MISSION COMPLETE', sub: 'The coupe is delivered. +$400', t: 999 };
+    return { screen: SCREEN_COMPLETE };
   }
-  const over = world.state.lives === 0;
-  return { screen: over ? SCREEN_OVER : SCREEN_PLAY, best: world.state.score };
+  // start (and anything else): a few seconds of city life behind the title.
+  stepSeconds(world, 4);
+  return { screen: SCREEN_TITLE };
 }
